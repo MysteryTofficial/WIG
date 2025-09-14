@@ -1,7 +1,7 @@
 # 🚀 Windows Installer Generator (WIG)
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="WIG Logo" width="150"/>
+  <img src="WIG_logo.png" alt="WIG Logo" width="150"/>
 </p>
 
 <p align="center">
