@@ -81,6 +81,39 @@
             font-size: 20px;
         }
         
+        .options-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .update-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            font-weight: 600;
+            color: #667eea;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s ease;
+        }
+        
+        .update-option:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        
+        .update-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+            cursor: pointer;
+        }
+        
         .stats {
             display: flex;
             justify-content: space-between;
@@ -152,12 +185,10 @@
         }
         
         .apps-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            max-height: 70vh;
+            height: 70vh;
             overflow-y: auto;
             padding-right: 10px;
+            contain: layout style paint;
         }
         
         .apps-container::-webkit-scrollbar {
@@ -174,14 +205,25 @@
             border-radius: 4px;
         }
         
+        .virtual-list {
+            position: relative;
+        }
+        
+        .virtual-viewport {
+            position: relative;
+            overflow: hidden;
+        }
+        
         .app-item {
             background: white;
             border: 2px solid #e1e5e9;
             border-radius: 12px;
             padding: 20px;
+            margin-bottom: 15px;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
+            will-change: transform;
         }
         
         .app-item:hover {
@@ -270,16 +312,16 @@
                 font-size: 2rem;
             }
             
-            .apps-container {
-                grid-template-columns: 1fr;
-            }
-            
             .stats {
                 flex-direction: column;
                 text-align: center;
             }
             
             .action-buttons {
+                justify-content: center;
+            }
+            
+            .options-row {
                 justify-content: center;
             }
         }
@@ -296,6 +338,13 @@
             <div class="search-container">
                 <input type="text" class="search-bar" id="searchBar" placeholder="Search for applications..." autocomplete="off">
                 <span class="search-icon">🔍</span>
+            </div>
+            
+            <div class="options-row">
+                <label class="update-option">
+                    <input type="checkbox" class="update-checkbox" id="updateAllApps">
+                    <span>🔄 Update all installed apps</span>
+                </label>
             </div>
             
             <div class="stats">
@@ -334,6 +383,12 @@
         let allApps = [];
         let filteredApps = [];
         let selectedApps = new Set();
+        let searchTimeout;
+        
+        // Virtual scrolling variables
+        let virtualList = null;
+        let itemHeight = 140; // Approximate height of each app item
+        let visibleItems = Math.ceil(window.innerHeight * 0.7 / itemHeight) + 5; // Buffer items
         
         // Sample data - in production this would be loaded from apps.json
         const sampleApps = [
@@ -346,33 +401,84 @@
             { Name: "Notepad++", Id: "Notepad++.Notepad++", Source: "Notepad++ Team" },
             { Name: "VLC media player", Id: "VideoLAN.VLC", Source: "VideoLAN" },
             { Name: "Discord", Id: "Discord.Discord", Source: "Discord Inc." },
-            { Name: "Spotify", Id: "Spotify.Spotify", Source: "Spotify AB" },
-            { Name: "Telegram Desktop", Id: "Telegram.TelegramDesktop", Source: "Telegram FZ-LLC" },
-            { Name: "WhatsApp", Id: "WhatsApp.WhatsApp", Source: "WhatsApp Inc." },
-            { Name: "Zoom", Id: "Zoom.Zoom", Source: "Zoom Video Communications, Inc." },
-            { Name: "Microsoft Teams", Id: "Microsoft.Teams", Source: "Microsoft Corporation" },
-            { Name: "Slack", Id: "Slack.Slack", Source: "Slack Technologies Inc." },
-            { Name: "Docker Desktop", Id: "Docker.DockerDesktop", Source: "Docker Inc." },
-            { Name: "IntelliJ IDEA Community", Id: "JetBrains.IntelliJIDEA.Community", Source: "JetBrains s.r.o." },
-            { Name: "Python 3.11", Id: "Python.Python.3.11", Source: "Python Software Foundation" },
-            { Name: "Node.js", Id: "Node.js", Source: "OpenJS Foundation" },
-            { Name: "Microsoft Power BI Desktop", Id: "Microsoft.PowerBI", Source: "Microsoft Corporation" }
+            { Name: "Spotify", Id: "Spotify.Spotify", Source: "Spotify AB" }
         ];
+        
+        class VirtualList {
+            constructor(container, items, renderItem) {
+                this.container = container;
+                this.items = items;
+                this.renderItem = renderItem;
+                this.itemHeight = itemHeight;
+                this.visibleItems = visibleItems;
+                this.startIndex = 0;
+                this.endIndex = Math.min(this.visibleItems, items.length);
+                
+                this.viewport = document.createElement('div');
+                this.viewport.className = 'virtual-viewport';
+                this.viewport.style.height = `${this.items.length * this.itemHeight}px`;
+                
+                this.list = document.createElement('div');
+                this.list.className = 'virtual-list';
+                this.list.style.transform = `translateY(0px)`;
+                
+                this.viewport.appendChild(this.list);
+                this.container.innerHTML = '';
+                this.container.appendChild(this.viewport);
+                
+                this.container.addEventListener('scroll', this.onScroll.bind(this), { passive: true });
+                this.render();
+            }
+            
+            onScroll() {
+                const scrollTop = this.container.scrollTop;
+                const newStartIndex = Math.floor(scrollTop / this.itemHeight);
+                const newEndIndex = Math.min(newStartIndex + this.visibleItems, this.items.length);
+                
+                if (newStartIndex !== this.startIndex || newEndIndex !== this.endIndex) {
+                    this.startIndex = newStartIndex;
+                    this.endIndex = newEndIndex;
+                    this.render();
+                }
+            }
+            
+            render() {
+                const fragment = document.createDocumentFragment();
+                
+                for (let i = this.startIndex; i < this.endIndex; i++) {
+                    const item = this.items[i];
+                    const element = this.renderItem(item, i);
+                    fragment.appendChild(element);
+                }
+                
+                this.list.innerHTML = '';
+                this.list.appendChild(fragment);
+                this.list.style.transform = `translateY(${this.startIndex * this.itemHeight}px)`;
+            }
+            
+            update(items) {
+                this.items = items;
+                this.viewport.style.height = `${this.items.length * this.itemHeight}px`;
+                this.startIndex = 0;
+                this.endIndex = Math.min(this.visibleItems, items.length);
+                this.container.scrollTop = 0;
+                this.render();
+            }
+        }
         
         async function loadApps() {
             try {
-                // Try to load from apps.json file
                 let response;
                 let metadata = null;
                 
                 try {
-                    // Load metadata first
+                    // Load metadata first (optional)
                     const metadataResponse = await fetch('metadata.json');
                     if (metadataResponse.ok) {
                         metadata = await metadataResponse.json();
                     }
                 } catch (e) {
-                    console.log('No metadata file found, using sample data');
+                    // Metadata is optional, continue without it
                 }
                 
                 try {
@@ -468,14 +574,38 @@
                 return; // Still loading
             }
             
-            container.innerHTML = filteredApps.map(app => `
-                <div class="app-item ${selectedApps.has(app.id) ? 'selected' : ''}" onclick="toggleApp('${app.id}')">
-                    <input type="checkbox" class="app-checkbox" ${selectedApps.has(app.id) ? 'checked' : ''} onchange="toggleApp('${app.id}')">
-                    <div class="app-name">${escapeHtml(app.name)}</div>
-                    <div class="app-id">${escapeHtml(app.id)}</div>
-                    <div class="app-publisher">${escapeHtml(app.publisher)}</div>
-                </div>
-            `).join('');
+            // Use virtual scrolling for large lists
+            if (filteredApps.length > 100) {
+                if (!virtualList) {
+                    virtualList = new VirtualList(container, filteredApps, renderAppItem);
+                } else {
+                    virtualList.update(filteredApps);
+                }
+            } else {
+                // Render normally for small lists
+                virtualList = null;
+                const fragment = document.createDocumentFragment();
+                filteredApps.forEach(app => {
+                    fragment.appendChild(renderAppItem(app));
+                });
+                container.innerHTML = '';
+                container.appendChild(fragment);
+            }
+        }
+        
+        function renderAppItem(app, index) {
+            const div = document.createElement('div');
+            div.className = `app-item ${selectedApps.has(app.id) ? 'selected' : ''}`;
+            div.onclick = () => toggleApp(app.id);
+            
+            div.innerHTML = `
+                <input type="checkbox" class="app-checkbox" ${selectedApps.has(app.id) ? 'checked' : ''} onchange="toggleApp('${escapeHtml(app.id)}')">
+                <div class="app-name">${escapeHtml(app.name)}</div>
+                <div class="app-id">${escapeHtml(app.id)}</div>
+                <div class="app-publisher">${escapeHtml(app.publisher)}</div>
+            `;
+            
+            return div;
         }
         
         function toggleApp(appId) {
@@ -489,29 +619,57 @@
         }
         
         function updateStats() {
-            document.getElementById('totalApps').textContent = allApps.length;
-            document.getElementById('selectedCount').textContent = selectedApps.size;
-            document.getElementById('filteredCount').textContent = filteredApps.length;
+            document.getElementById('totalApps').textContent = allApps.length.toLocaleString();
+            document.getElementById('selectedCount').textContent = selectedApps.size.toLocaleString();
+            document.getElementById('filteredCount').textContent = filteredApps.length.toLocaleString();
             
             const generateBtn = document.getElementById('generateBtn');
-            generateBtn.disabled = selectedApps.size === 0;
+            const updateAllChecked = document.getElementById('updateAllApps').checked;
+            generateBtn.disabled = selectedApps.size === 0 && !updateAllChecked;
         }
         
         function filterApps() {
             const searchTerm = document.getElementById('searchBar').value.toLowerCase();
-            filteredApps = allApps.filter(app => 
-                app.name.toLowerCase().includes(searchTerm) ||
-                app.id.toLowerCase().includes(searchTerm) ||
-                app.publisher.toLowerCase().includes(searchTerm)
-            );
+            
+            if (!searchTerm) {
+                filteredApps = [...allApps];
+            } else {
+                filteredApps = allApps.filter(app => 
+                    app.name.toLowerCase().includes(searchTerm) ||
+                    app.id.toLowerCase().includes(searchTerm) ||
+                    app.publisher.toLowerCase().includes(searchTerm)
+                );
+            }
+            
             renderApps();
             updateStats();
         }
         
+        function debouncedFilter() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(filterApps, 200);
+        }
+        
         function selectAllVisible() {
-            filteredApps.forEach(app => selectedApps.add(app.id));
-            renderApps();
-            updateStats();
+            const batchSize = 1000;
+            let processed = 0;
+            
+            function processBatch() {
+                const end = Math.min(processed + batchSize, filteredApps.length);
+                for (let i = processed; i < end; i++) {
+                    selectedApps.add(filteredApps[i].id);
+                }
+                processed = end;
+                
+                if (processed < filteredApps.length) {
+                    requestAnimationFrame(processBatch);
+                } else {
+                    renderApps();
+                    updateStats();
+                }
+            }
+            
+            processBatch();
         }
         
         function clearAll() {
@@ -521,19 +679,19 @@
         }
         
         function generateInstaller() {
-            if (selectedApps.size === 0) return;
+            const updateAllApps = document.getElementById('updateAllApps').checked;
+            const hasSelectedApps = selectedApps.size > 0;
             
-            const selectedAppsList = Array.from(selectedApps).map(id => 
-                allApps.find(app => app.id === id)
-            );
+            if (!hasSelectedApps && !updateAllApps) return;
+            
+            const selectedAppsList = hasSelectedApps ? 
+                Array.from(selectedApps).map(id => allApps.find(app => app.id === id)) : [];
             
             let batContent = `@echo off
 echo ========================================
 echo Winget Installer Generator
 echo Generated on ${new Date().toLocaleString()}
 echo ========================================
-echo.
-echo Installing ${selectedApps.size} applications...
 echo.
 
 REM Check if winget is available
@@ -548,32 +706,56 @@ if %ERRORLEVEL% neq 0 (
 REM Accept winget source agreements
 echo Accepting winget source agreements...
 winget source update
-
-echo.
-echo Starting installations...
 echo.
 
 `;
 
-            selectedAppsList.forEach((app, index) => {
-                batContent += `REM Installing ${app.name}\n`;
-                batContent += `echo [${index + 1}/${selectedApps.size}] Installing ${app.name}...\n`;
-                batContent += `winget install --id="${app.id}" --silent --accept-package-agreements --accept-source-agreements\n`;
-                batContent += `if %ERRORLEVEL% neq 0 (\n`;
-                batContent += `    echo WARNING: Failed to install ${app.name}\n`;
-                batContent += `) else (\n`;
-                batContent += `    echo SUCCESS: ${app.name} installed\n`;
-                batContent += `)\n`;
-                batContent += `echo.\n\n`;
-            });
+            if (updateAllApps) {
+                batContent += `echo Updating all installed applications...
+winget upgrade --all --silent --accept-package-agreements --accept-source-agreements
+if %ERRORLEVEL% neq 0 (
+    echo WARNING: Some updates may have failed
+) else (
+    echo SUCCESS: All applications updated
+)
+echo.
+
+`;
+            }
+
+            if (hasSelectedApps) {
+                batContent += `echo Installing ${selectedApps.size} applications...
+echo.
+
+`;
+
+                selectedAppsList.forEach((app, index) => {
+                    batContent += `REM Installing ${app.name}\n`;
+                    batContent += `echo [${index + 1}/${selectedApps.size}] Installing ${app.name}...\n`;
+                    batContent += `winget install --id="${app.id}" --silent --accept-package-agreements --accept-source-agreements\n`;
+                    batContent += `if %ERRORLEVEL% neq 0 (\n`;
+                    batContent += `    echo WARNING: Failed to install ${app.name}\n`;
+                    batContent += `) else (\n`;
+                    batContent += `    echo SUCCESS: ${app.name} installed\n`;
+                    batContent += `)\n`;
+                    batContent += `echo.\n\n`;
+                });
+            }
 
             batContent += `echo ========================================
 echo Installation completed!
 echo ========================================
 echo.
-echo Summary:
-echo - Total applications: ${selectedApps.size}
-echo - Check the output above for any failed installations
+echo Summary:`;
+
+            if (updateAllApps) {
+                batContent += `\necho - Updated all installed applications`;
+            }
+            if (hasSelectedApps) {
+                batContent += `\necho - Attempted to install ${selectedApps.size} new applications`;
+            }
+
+            batContent += `\necho - Check the output above for any failed operations
 echo.
 pause
 `;
@@ -593,6 +775,7 @@ pause
         function refreshApps() {
             allApps = [];
             selectedApps.clear();
+            virtualList = null;
             document.getElementById('appsContainer').innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Refreshing applications...</p></div>';
             loadApps();
         }
@@ -609,11 +792,12 @@ pause
         }
         
         // Event listeners
-        document.getElementById('searchBar').addEventListener('input', filterApps);
+        document.getElementById('searchBar').addEventListener('input', debouncedFilter);
         document.getElementById('generateBtn').addEventListener('click', generateInstaller);
         document.getElementById('selectAllBtn').addEventListener('click', selectAllVisible);
         document.getElementById('clearAllBtn').addEventListener('click', clearAll);
         document.getElementById('refreshBtn').addEventListener('click', refreshApps);
+        document.getElementById('updateAllApps').addEventListener('change', updateStats);
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -627,7 +811,8 @@ pause
             }
             if (e.ctrlKey && e.key === 'Enter') {
                 e.preventDefault();
-                if (selectedApps.size > 0) generateInstaller();
+                const updateAllChecked = document.getElementById('updateAllApps').checked;
+                if (selectedApps.size > 0 || updateAllChecked) generateInstaller();
             }
         });
         
