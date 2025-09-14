@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="favicon" href="./WIG_logo.ico" type="image/x-icon">
     <title>Winget Installer Generator</title>
     <style>
         * {
@@ -688,218 +689,24 @@
                 Array.from(selectedApps).map(id => allApps.find(app => app.id === id)) : [];
             
             let batContent = `@echo off
-REM Check for administrator privileges and request elevation if needed
->nul 2>&1 "%SYSTEMROOT%\\SysWOW64\\cacls.exe" "%SYSTEMROOT%\\SysWOW64\\config\\system"
-if '%errorlevel%' NEQ '0' (
-    echo Requesting administrator privileges...
-    goto UACPrompt
-) else ( goto gotAdmin )
-
-:UACPrompt
-echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\\getadmin.vbs"
-set params= %*
-echo UAC.ShellExecute "cmd.exe", "/c ""%~s0"" %params:"=""%", "", "runas", 1 >> "%temp%\\getadmin.vbs"
-"%temp%\\getadmin.vbs"
-del "%temp%\\getadmin.vbs"
-exit /B
-
-:gotAdmin
-pushd "%CD%"
-CD /D "%~dp0"
-
-REM Clear screen and show header with admin confirmation
-cls
 echo ========================================
 echo Winget Installer Generator
 echo Generated on ${new Date().toLocaleString()}
-echo Running with Administrator Privileges
 echo ========================================
 echo.
 
 REM Check if winget is available
-echo Checking for winget...
 where winget >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo winget not found. Installing automatically...
-    echo.
-    
-    REM Check Windows version (winget requires Windows 10 1809+ or Windows 11)
-    for /f "tokens=4-5 delims=. " %%i in ('ver') do set VERSION=%%i.%%j
-    if "%VERSION%" LSS "10.0" (
-        echo ERROR: winget requires Windows 10 version 1809 or later
-        echo Your Windows version does not support winget
-        pause
-        exit /b 1
-    )
-    
-    REM Download and install App Installer (contains winget) automatically
-    echo Downloading and installing winget...
-    powershell -ExecutionPolicy Bypass -Command "& {
-        try {
-            # Set progress preference to avoid progress bars in non-interactive mode
-            $ProgressPreference = 'SilentlyContinue'
-            
-            # Create temp directory
-            $tempDir = Join-Path $env:TEMP 'WingetInstaller'
-            if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-            
-            Write-Host 'Downloading winget installer...'
-            
-            # Try multiple download sources
-            $urls = @(
-                'https://aka.ms/getwinget',
-                'https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle'
-            )
-            
-            $downloaded = $false
-            foreach ($url in $urls) {
-                try {
-                    $output = Join-Path $tempDir 'Microsoft.DesktopAppInstaller.msixbundle'
-                    Write-Host \"Trying: $url\"
-                    Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing -TimeoutSec 60
-                    if (Test-Path $output -and (Get-Item $output).Length -gt 1MB) {
-                        $downloaded = $true
-                        break
-                    }
-                } catch {
-                    Write-Host \"Failed to download from: $url\"
-                    continue
-                }
-            }
-            
-            if (-not $downloaded) {
-                throw 'Failed to download from all sources'
-            }
-            
-            Write-Host 'Installing winget...'
-            
-            # Install required dependencies first
-            try {
-                # Download and install VCLibs
-                $vclibsUrl = 'https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx'
-                $vclibsPath = Join-Path $tempDir 'VCLibs.appx'
-                Invoke-WebRequest -Uri $vclibsUrl -OutFile $vclibsPath -UseBasicParsing -TimeoutSec 30
-                Add-AppxPackage -Path $vclibsPath -ForceApplicationShutdown
-                Write-Host 'VCLibs dependency installed'
-            } catch {
-                Write-Host 'VCLibs already installed or not required'
-            }
-            
-            try {
-                # Download and install UI.Xaml
-                $xamlUrl = 'https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.8.6/Microsoft.UI.Xaml.2.8.x64.appx'
-                $xamlPath = Join-Path $tempDir 'UIXaml.appx'
-                Invoke-WebRequest -Uri $xamlUrl -OutFile $xamlPath -UseBasicParsing -TimeoutSec 30
-                Add-AppxPackage -Path $xamlPath -ForceApplicationShutdown
-                Write-Host 'UI.Xaml dependency installed'
-            } catch {
-                Write-Host 'UI.Xaml already installed or not required'
-            }
-            
-            # Install the main package
-            Add-AppxPackage -Path $output -ForceApplicationShutdown
-            
-            # Clean up temp files
-            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-            
-            Write-Host 'winget installation completed successfully!'
-            exit 0
-            
-        } catch {
-            Write-Host \"ERROR: Failed to install winget automatically: $($_.Exception.Message)\"
-            Write-Host 'You may need to:'
-            Write-Host '1. Check your internet connection'
-            Write-Host '2. Enable Developer Mode in Windows Settings'
-            Write-Host '3. Install from Microsoft Store manually'
-            exit 1
-        }
-    }"
-    
-    if %ERRORLEVEL% neq 0 (
-        echo.
-        echo Installation failed. Trying alternative method...
-        
-        REM Try installing via chocolatey or scoop if available
-        where choco >nul 2>nul
-        if %ERRORLEVEL% equ 0 (
-            echo Found Chocolatey. Installing winget via chocolatey...
-            choco install winget-cli -y
-            goto :verify_install
-        )
-        
-        where scoop >nul 2>nul
-        if %ERRORLEVEL% equ 0 (
-            echo Found Scoop. Installing winget via scoop...
-            scoop bucket add extras
-            scoop install winget
-            goto :verify_install
-        )
-        
-        echo.
-        echo ERROR: All automatic installation methods failed
-        echo Please try:
-        echo 1. Install 'App Installer' from Microsoft Store
-        echo 2. Download from: https://github.com/microsoft/winget-cli/releases
-        echo 3. Enable Developer Mode in Windows Settings
-        echo 4. Check your internet connection
-        echo.
-        pause
-        exit /b 1
-    )
-    
-    :verify_install
-    echo.
-    echo winget installed successfully!
-    echo Refreshing environment...
-    
-    REM Wait a moment for installation to complete
-    timeout /t 3 /nobreak >nul
-    
-    REM Add common winget paths to current session
-    set "PATH=%PATH%;%LOCALAPPDATA%\\Microsoft\\WindowsApps"
-    set "PATH=%PATH%;%PROGRAMFILES%\\WindowsApps\\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe"
-    
-    REM Verify installation
-    echo Verifying winget installation...
-    where winget >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
-        echo Trying alternative winget location...
-        for /d %%i in ("%LOCALAPPDATA%\\Microsoft\\WindowsApps\\winget*") do (
-            if exist "%%i\\winget.exe" (
-                set "PATH=%PATH%;%%i"
-                goto :winget_found
-            )
-        )
-        
-        REM Try Program Files location
-        for /d %%i in ("%PROGRAMFILES%\\WindowsApps\\Microsoft.DesktopAppInstaller*") do (
-            if exist "%%i\\winget.exe" (
-                set "PATH=%PATH%;%%i"
-                goto :winget_found
-            )
-        )
-        
-        echo WARNING: winget installed but not immediately available in PATH
-        echo You may need to restart your command prompt
-        echo Attempting to continue...
-        goto :continue_install
-        
-        :winget_found
-        echo winget is now available!
-    ) else (
-        echo winget verified and ready!
-    )
-    echo.
-) else (
-    echo winget found and ready to use!
-    echo.
+    echo ERROR: winget is not installed or not in PATH
+    echo Please install winget from Microsoft Store or GitHub
+    pause
+    exit /b 1
 )
 
-:continue_install
-REM Initialize winget sources
-echo Initializing winget sources...
-winget source update --disable-interactivity
+REM Accept winget source agreements
+echo Accepting winget source agreements...
+winget source update
 echo.
 
 `;
@@ -1013,5 +820,20 @@ pause
         // Initialize
         loadApps();
     </script>
+<footer>
+  © 2025 MysteryT (Péter). All rights reserved.
+</footer>
+
+<style>
+  footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 14px;
+    color: #666;
+    background-color: #222222;
+    border-top: 1px solid #000000;
+    margin-top: 30px;
+  }
+</style>
 </body>
 </html>
