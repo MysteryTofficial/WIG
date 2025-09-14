@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <b>Install and update multiple apps with one file!</b><br>
-  Simplify software deployment on Windows with WIG.
+  <b>Generate a custom Windows installer from the Winget library!</b><br>
+  Install or update multiple apps at once with a single .bat file.
 </p>
 
 ---
@@ -35,22 +35,22 @@
 
 ## 📖 About the Project
 
-**Windows Installer Generator (WIG)** is a tool that allows you to package multiple applications into a single installer.  
-It leverages **Winget** under the hood to automate installations and updates, saving you time and effort.
+**Windows Installer Generator (WIG)** is a web-based tool that lets you generate a **custom .bat installer** using apps from the **Winget library**.  
+Think of it like **Ninite**, but powered by Microsoft’s package manager.
 
 ### ✨ Why WIG?
 
-- Installing many apps on a new Windows machine is time-consuming.  
-- Updating apps one by one is tedious.  
-- WIG makes this process **automatic, fast, and repeatable**.  
+- Installing multiple apps one by one is slow and tedious.  
+- Updating software manually is error-prone.  
+- WIG automates app installation, saving time and avoiding repetitive work.  
 
 ### ✅ Features
 
-- ✅ Bundle multiple apps into a single installer  
-- ✅ Update apps with one click  
-- ✅ Customizable app list with simple configs  
-- ✅ Clean, lightweight, and fast  
-- ✅ Works on any Windows machine with Winget  
+- ✅ Web interface to select apps from the Winget library  
+- ✅ Generates a single `.bat` installer for Windows  
+- ✅ Automatic updates for selected apps  
+- ✅ Lightweight, fast, and easy to share  
+- ✅ No dependencies other than Winget  
 
 ---
 
@@ -63,39 +63,33 @@ It leverages **Winget** under the hood to automate installations and updates, sa
 
 ### 📥 Installation
 
-Clone this repository:
+Clone the repo:
 
 ```bash
 git clone https://github.com/yourusername/WIG.git
 cd WIG
 ```
 
-Run WIG:
+Launch the web app locally (example with Python Flask):
 
 ```bash
-wig generate config.yaml
+python app.py
 ```
+
+Then open `http://localhost:5000` in your browser.
 
 ### ▶️ Example Usage
 
-```yaml
-apps:
-  - Google.Chrome
-  - VisualStudioCode
-  - Spotify
-```
-
-Then run:
-
-```bash
-wig install config.yaml
-```
+1. Open the WIG web interface.  
+2. Select the apps you want to include.  
+3. Click **Generate Installer**.  
+4. Run the downloaded `.bat` file to install or update apps automatically.
 
 ---
 
 ## 🖼️ Screenshots / GIFs
 
-> 🎥 Demo & screenshots coming soon!
+> 🎥 Web interface demo and installer in action coming soon!
 
 <p align="center">
   <img src="docs/images/demo.gif" alt="WIG Demo" width="600"/>
@@ -105,55 +99,54 @@ wig install config.yaml
 
 ## ⚙️ How It Works
 
-1. You provide a **YAML/JSON config** file with the apps you want.  
-2. WIG uses **Winget** to fetch and install them.  
-3. Generates a single **installer script/exe** you can share.  
+1. User selects apps on the web interface.  
+2. WIG generates a `.bat` file with Winget commands.  
+3. Running the `.bat` installs or updates all selected apps.  
 
-### Example Config
+### Example .bat snippet
 
-```yaml
-apps:
-  - Firefox
-  - 7zip.7zip
-  - Git.Git
+```bat
+@echo off
+winget install --id=Google.Chrome -e --silent
+winget install --id=Microsoft.VisualStudioCode -e --silent
+winget install --id=Spotify.Spotify -e --silent
+pause
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] GUI version of WIG  
-- [ ] Support for offline installers  
-- [ ] Cross-platform support (Linux/macOS with Brew/apt)  
-- [ ] Auto-update feature  
+- [ ] Advanced web UI for app search and categories  
+- [ ] Auto-update feature for generated installers  
+- [ ] Support for offline installations  
+- [ ] Downloadable config templates  
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome! 🎉  
-To contribute:
-
 1. Fork the repo  
-2. Create a new branch (`git checkout -b feature/YourFeature`)  
-3. Commit changes (`git commit -m 'Add YourFeature'`)  
+2. Create a branch (`git checkout -b feature/YourFeature`)  
+3. Commit (`git commit -m 'Add YourFeature'`)  
 4. Push (`git push origin feature/YourFeature`)  
 5. Open a Pull Request  
 
-Please check the [issues](https://github.com/yourusername/WIG/issues) page for existing tasks.
+Check [issues](https://github.com/yourusername/WIG/issues) for tasks.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+MIT License – see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 🙏 Acknowledgements
 
-- 📌 [Winget](https://learn.microsoft.com/en-us/windows/package-manager/) – Microsoft’s package manager  
-- 📌 Inspiration from Chocolatey, Ninite, and other installers  
+- 📌 [Winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) – Microsoft’s package manager  
+- 📌 Inspired by Ninite and other installer automation tools  
 - 📌 Thanks to the open-source community 💙  
 
 ---
