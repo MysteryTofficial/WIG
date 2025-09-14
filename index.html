@@ -379,13 +379,39 @@
                     // Load apps from apps.json
                     response = await fetch('apps.json');
                     if (response.ok) {
-                        const rawApps = await response.json();
+                        const jsonText = await response.text();
+                        let rawApps;
+                        
+                        try {
+                            // Try to parse as-is first
+                            rawApps = JSON.parse(jsonText);
+                        } catch (parseError) {
+                            // If parsing fails, try to fix common JSON formatting issues
+                            console.log('JSON parse failed, attempting to fix formatting...');
+                            
+                            // Fix missing commas between objects
+                            let fixedJson = jsonText
+                                .trim()
+                                // Add commas between } and { if missing
+                                .replace(/}\s*{/g, '},{')
+                                // Ensure the array is properly wrapped
+                                .replace(/^\s*{/, '[{')
+                                .replace(/}\s*$/, '}]');
+                            
+                            try {
+                                rawApps = JSON.parse(fixedJson);
+                            } catch (secondError) {
+                                throw new Error(`JSON parsing failed: ${parseError.message}`);
+                            }
+                        }
+                        
                         // Transform the data to match our internal format
                         allApps = rawApps.map(app => ({
                             id: app.Id,
                             name: app.Name,
                             publisher: app.Source || 'Unknown Publisher'
                         }));
+                        
                         console.log(`Loaded ${allApps.length} apps from apps.json`);
                         
                         if (metadata) {
