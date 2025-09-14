@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winget Installer Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .search-bar {
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .search-bar:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 20px;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+        }
+        
+        .stat-item {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #dee2e6;
+        }
+        
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .app-grid {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .apps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .apps-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .apps-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .apps-container::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        
+        .app-item {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .app-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+        }
+        
+        .app-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .app-checkbox {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 20px;
+            height: 20px;
+            accent-color: #667eea;
+        }
+        
+        .app-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+            padding-right: 30px;
+        }
+        
+        .app-id {
+            font-size: 14px;
+            color: #666;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        
+        .app-publisher {
+            font-size: 14px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 18px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .apps-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .action-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Winget Installer Generator</h1>
+            <p>Select apps, generate installer, deploy anywhere</p>
+        </div>
+        
+        <div class="controls">
+            <div class="search-container">
+                <input type="text" class="search-bar" id="searchBar" placeholder="Search for applications..." autocomplete="off">
+                <span class="search-icon">🔍</span>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">📦 Total Apps: <span id="totalApps">Loading...</span></div>
+                <div class="stat-item">✅ Selected: <span id="selectedCount">0</span></div>
+                <div class="stat-item">🔍 Filtered: <span id="filteredCount">0</span></div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="generateBtn" disabled>
+                    📥 Generate Installer
+                </button>
+                <button class="btn btn-secondary" id="selectAllBtn">
+                    ☑️ Select All Visible
+                </button>
+                <button class="btn btn-secondary" id="clearAllBtn">
+                    ❌ Clear All
+                </button>
+                <button class="btn btn-secondary" id="refreshBtn">
+                    🔄 Refresh Apps
+                </button>
+            </div>
+        </div>
+        
+        <div class="app-grid">
+            <div class="apps-container" id="appsContainer">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading applications from apps.json...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allApps = [];
+        let filteredApps = [];
+        let selectedApps = new Set();
+        
+        // Sample data - in production this would be loaded from apps.json
+        const sampleApps = [
+            { Name: "Google Chrome", Id: "Google.Chrome", Source: "Google LLC" },
+            { Name: "Mozilla Firefox", Id: "Mozilla.Firefox", Source: "Mozilla" },
+            { Name: "Visual Studio Code", Id: "Microsoft.VisualStudioCode", Source: "Microsoft Corporation" },
+            { Name: "Git", Id: "Git.Git", Source: "The Git Development Community" },
+            { Name: "7-Zip", Id: "7zip.7zip", Source: "Igor Pavlov" },
+            { Name: "Adobe Acrobat Reader DC", Id: "Adobe.AdobeAcrobatReaderDC", Source: "Adobe Inc." },
+            { Name: "Notepad++", Id: "Notepad++.Notepad++", Source: "Notepad++ Team" },
+            { Name: "VLC media player", Id: "VideoLAN.VLC", Source: "VideoLAN" },
+            { Name: "Discord", Id: "Discord.Discord", Source: "Discord Inc." },
+            { Name: "Spotify", Id: "Spotify.Spotify", Source: "Spotify AB" },
+            { Name: "Telegram Desktop", Id: "Telegram.TelegramDesktop", Source: "Telegram FZ-LLC" },
+            { Name: "WhatsApp", Id: "WhatsApp.WhatsApp", Source: "WhatsApp Inc." },
+            { Name: "Zoom", Id: "Zoom.Zoom", Source: "Zoom Video Communications, Inc." },
+            { Name: "Microsoft Teams", Id: "Microsoft.Teams", Source: "Microsoft Corporation" },
+            { Name: "Slack", Id: "Slack.Slack", Source: "Slack Technologies Inc." },
+            { Name: "Docker Desktop", Id: "Docker.DockerDesktop", Source: "Docker Inc." },
+            { Name: "IntelliJ IDEA Community", Id: "JetBrains.IntelliJIDEA.Community", Source: "JetBrains s.r.o." },
+            { Name: "Python 3.11", Id: "Python.Python.3.11", Source: "Python Software Foundation" },
+            { Name: "Node.js", Id: "Node.js", Source: "OpenJS Foundation" },
+            { Name: "Microsoft Power BI Desktop", Id: "Microsoft.PowerBI", Source: "Microsoft Corporation" }
+        ];
+        
+        async function loadApps() {
+            try {
+                // Try to load from apps.json file
+                let response;
+                let metadata = null;
+                
+                try {
+                    // Load metadata first
+                    const metadataResponse = await fetch('metadata.json');
+                    if (metadataResponse.ok) {
+                        metadata = await metadataResponse.json();
+                    }
+                } catch (e) {
+                    console.log('No metadata file found, using sample data');
+                }
+                
+                try {
+                    // Load apps from apps.json
+                    response = await fetch('apps.json');
+                    if (response.ok) {
+                        const rawApps = await response.json();
+                        // Transform the data to match our internal format
+                        allApps = rawApps.map(app => ({
+                            id: app.Id,
+                            name: app.Name,
+                            publisher: app.Source || 'Unknown Publisher'
+                        }));
+                        console.log(`Loaded ${allApps.length} apps from apps.json`);
+                        
+                        if (metadata) {
+                            updateLastUpdated(metadata.lastUpdated);
+                        }
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (e) {
+                    console.log('Failed to load from apps.json, using sample data:', e.message);
+                    // Fall back to sample data for demo purposes
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    // Transform sample data to match the JSON format
+                    allApps = sampleApps.map(app => ({
+                        id: app.Id,
+                        name: app.Name,
+                        publisher: app.Source || 'Unknown Publisher'
+                    }));
+                }
+                
+                // Sort apps alphabetically for better UX
+                allApps.sort((a, b) => a.name.localeCompare(b.name));
+                
+                filteredApps = [...allApps];
+                renderApps();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading apps:', error);
+                showError('Failed to load applications. Please try refreshing the page.');
+            }
+        }
+        
+        function updateLastUpdated(timestamp) {
+            if (!timestamp) return;
+            
+            const date = new Date(timestamp);
+            const lastUpdatedElement = document.createElement('div');
+            lastUpdatedElement.className = 'stat-item';
+            lastUpdatedElement.innerHTML = `🕐 Last Updated: ${date.toLocaleDateString()}`;
+            
+            const stats = document.querySelector('.stats');
+            stats.appendChild(lastUpdatedElement);
+        }
+        
+        function renderApps() {
+            const container = document.getElementById('appsContainer');
+            
+            if (filteredApps.length === 0 && allApps.length > 0) {
+                container.innerHTML = '<div class="no-results">No applications match your search criteria.</div>';
+                return;
+            }
+            
+            if (allApps.length === 0) {
+                return; // Still loading
+            }
+            
+            container.innerHTML = filteredApps.map(app => `
+                <div class="app-item ${selectedApps.has(app.id) ? 'selected' : ''}" onclick="toggleApp('${app.id}')">
+                    <input type="checkbox" class="app-checkbox" ${selectedApps.has(app.id) ? 'checked' : ''} onchange="toggleApp('${app.id}')">
+                    <div class="app-name">${escapeHtml(app.name)}</div>
+                    <div class="app-id">${escapeHtml(app.id)}</div>
+                    <div class="app-publisher">${escapeHtml(app.publisher)}</div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleApp(appId) {
+            if (selectedApps.has(appId)) {
+                selectedApps.delete(appId);
+            } else {
+                selectedApps.add(appId);
+            }
+            renderApps();
+            updateStats();
+        }
+        
+        function updateStats() {
+            document.getElementById('totalApps').textContent = allApps.length;
+            document.getElementById('selectedCount').textContent = selectedApps.size;
+            document.getElementById('filteredCount').textContent = filteredApps.length;
+            
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = selectedApps.size === 0;
+        }
+        
+        function filterApps() {
+            const searchTerm = document.getElementById('searchBar').value.toLowerCase();
+            filteredApps = allApps.filter(app => 
+                app.name.toLowerCase().includes(searchTerm) ||
+                app.id.toLowerCase().includes(searchTerm) ||
+                app.publisher.toLowerCase().includes(searchTerm)
+            );
+            renderApps();
+            updateStats();
+        }
+        
+        function selectAllVisible() {
+            filteredApps.forEach(app => selectedApps.add(app.id));
+            renderApps();
+            updateStats();
+        }
+        
+        function clearAll() {
+            selectedApps.clear();
+            renderApps();
+            updateStats();
+        }
+        
+        function generateInstaller() {
+            if (selectedApps.size === 0) return;
+            
+            const selectedAppsList = Array.from(selectedApps).map(id => 
+                allApps.find(app => app.id === id)
+            );
+            
+            let batContent = `@echo off
+echo ========================================
+echo Winget Installer Generator
+echo Generated on ${new Date().toLocaleString()}
+echo ========================================
+echo.
+echo Installing ${selectedApps.size} applications...
+echo.
+
+REM Check if winget is available
+where winget >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: winget is not installed or not in PATH
+    echo Please install winget from Microsoft Store or GitHub
+    pause
+    exit /b 1
+)
+
+REM Accept winget source agreements
+echo Accepting winget source agreements...
+winget source update
+
+echo.
+echo Starting installations...
+echo.
+
+`;
+
+            selectedAppsList.forEach((app, index) => {
+                batContent += `REM Installing ${app.name}\n`;
+                batContent += `echo [${index + 1}/${selectedApps.size}] Installing ${app.name}...\n`;
+                batContent += `winget install --id="${app.id}" --silent --accept-package-agreements --accept-source-agreements\n`;
+                batContent += `if %ERRORLEVEL% neq 0 (\n`;
+                batContent += `    echo WARNING: Failed to install ${app.name}\n`;
+                batContent += `) else (\n`;
+                batContent += `    echo SUCCESS: ${app.name} installed\n`;
+                batContent += `)\n`;
+                batContent += `echo.\n\n`;
+            });
+
+            batContent += `echo ========================================
+echo Installation completed!
+echo ========================================
+echo.
+echo Summary:
+echo - Total applications: ${selectedApps.size}
+echo - Check the output above for any failed installations
+echo.
+pause
+`;
+
+            // Create and download the batch file
+            const blob = new Blob([batContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `winget-installer-${Date.now()}.bat`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function refreshApps() {
+            allApps = [];
+            selectedApps.clear();
+            document.getElementById('appsContainer').innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Refreshing applications...</p></div>';
+            loadApps();
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('appsContainer');
+            container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Event listeners
+        document.getElementById('searchBar').addEventListener('input', filterApps);
+        document.getElementById('generateBtn').addEventListener('click', generateInstaller);
+        document.getElementById('selectAllBtn').addEventListener('click', selectAllVisible);
+        document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+        document.getElementById('refreshBtn').addEventListener('click', refreshApps);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                selectAllVisible();
+            }
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                clearAll();
+            }
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedApps.size > 0) generateInstaller();
+            }
+        });
+        
+        // Initialize
+        loadApps();
+    </script>
+</body>
+</html>
